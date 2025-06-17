@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Botanical Tree Generator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(to bottom, #87CEEB 0%, #98D8E8 60%, #E0F6FF 100%);
+            overflow: hidden;
+            height: 100vh;
+        }
+        
+        #canvas {
+            display: block;
+            cursor: grab;
+        }
+        
+        #controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
+            width: 280px;
+        }
+        
+        h1 {
+            font-size: 24px;
+            margin-bottom: 15px;
+            color: #2c3e50;
+        }
+        
+        .control-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #34495e;
+            font-size: 14px;
+        }
+        
+        select, input[type="range"], input[type="number"], button {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        
+        input[type="range"] {
+            padding: 0;
+        }
+        
+        .range-value {
+            display: inline-block;
+            width: 50px;
+            text-align: right;
+            font-size: 12px;
+            color: #7f8c8d;
+        }
+        
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.3s;
+        }
+        
+        button:hover {
+            background: #2980b9;
+        }
+        
+        .secondary-button {
+            background: #95a5a6;
+            margin-top: 5px;
+        }
+        
+        .secondary-button:hover {
+            background: #7f8c8d;
+        }
+        
+        #info {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 10px 15px;
+            border-radius: 5px;
+            font-size: 12px;
+            color: #7f8c8d;
+        }
+        
+        .wind-indicator {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.9);
+            padding: 10px;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        #windArrow {
+            width: 30px;
+            height: 30px;
+            transition: transform 0.3s;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    
+    <div id="controls">
+        <h1>Botanical Tree Generator</h1>
+        
+        <div class="control-group">
+            <label for="species">Species</label>
+            <select id="species">
+                <option value="oak">Oak - Majestic Hardwood</option>
+                <option value="pine">Pine - Coniferous Tower</option>
+                <option value="willow">Willow - Weeping Beauty</option>
+                <option value="birch">Birch - Silver Elegance</option>
+                <option value="maple">Maple - Symmetric Crown</option>
+                <option value="palm">Palm - Tropical Icon</option>
+                <option value="cherry">Cherry - Blossom Tree</option>
+                <option value="ginkgo">Ginkgo - Living Fossil</option>
+                <option value="baobab">Baobab - Tree of Life</option>
+                <option value="redwood">Redwood - Forest Giant</option>
+                <option value="cypress">Cypress - Mediterranean Spire</option>
+                <option value="mangrove">Mangrove - Coastal Survivor</option>
+            </select>
+        </div>
+        
+        <div class="control-group">
+            <label for="age">Tree Age <span class="range-value" id="ageValue">50</span>%</label>
+            <input type="range" id="age" min="10" max="100" value="50" step="5">
+        </div>
+        
+        <div class="control-group">
+            <label for="season">Season</label>
+            <select id="season">
+                <option value="spring">Spring</option>
+                <option value="summer">Summer</option>
+                <option value="autumn">Autumn</option>
+                <option value="winter">Winter</option>
+            </select>
+        </div>
+        
+        <div class="control-group">
+            <label for="windStrength">Wind Strength <span class="range-value" id="windValue">0</span></label>
+            <input type="range" id="windStrength" min="0" max="10" value="0" step="0.5">
+        </div>
+        
+        <div class="control-group">
+            <label for="windDirection">Wind Direction <span class="range-value" id="windDirValue">0</span>°</label>
+            <input type="range" id="windDirection" min="0" max="360" value="0" step="15">
+        </div>
+        
+        <div class="control-group">
+            <label for="damage">Environmental Stress <span class="range-value" id="damageValue">0</span>%</label>
+            <input type="range" id="damage" min="0" max="100" value="0" step="10">
+        </div>
+        
+        <div class="control-group">
+            <label for="seed">Random Seed</label>
+            <input type="number" id="seed" min="0" max="99999" value="12345">
+        </div>
+        
+        <button onclick="generateTree()">Generate New Tree</button>
+        <button class="secondary-button" onclick="randomizeSeed()">Random Seed</button>
+        <button class="secondary-button" onclick="animateGrowth()">Animate Growth</button>
+        <button class="secondary-button" onclick="exportTree()">Export Image</button>
+    </div>
+    
+    <div class="wind-indicator">
+        <span>Wind</span>
+        <svg id="windArrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M5 12h14M12 5l7 7-7 7"/>
+        </svg>
+    </div>
+    
+    <div id="info">
+        Click and drag to rotate view • Scroll to zoom
+    </div>
+    
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Canvas setup
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+        
+        // Tree parameters for each species
+        const treeSpecies = {
+            oak: {
+                name: 'Oak',
+                branchingPattern: 'alternate',
+                phyllotaxisAngle: 137.5,
+                branchAngle: { min: 45, max: 80 },
+                branchThicknessRatio: 0.65,
+                maxDepth: 5,
+                branchingProbability: 0.7,
+                trunkColor: '#4a3c28',
+                leafColor: { spring: '#90EE90', summer: '#228B22', autumn: '#CD853F', winter: null },
+                leafShape: 'lobed',
+                height: { min: 15, max: 25 },
+                canSprout: true,
+                gravityFactor: 0.1,
+                windResistance: 0.8
+            },
+            pine: {
+                name: 'Pine',
+                branchingPattern: 'whorled',
+                branchesPerWhorl: { min: 3, max: 7 },
+                whorlSpacing: 0.8,
+                branchAngle: { min: 70, max: 90 },
+                branchThicknessRatio: 0.45,
+                maxDepth: 4,
+                branchingProbability: 1.0,
+                trunkColor: '#8B4513',
+                leafColor: { spring: '#2F4F2F', summer: '#013220', autumn: '#2F4F2F', winter: '#2F4F2F' },
+                leafShape: 'needle',
+                height: { min: 20, max: 40 },
+                canSprout: false,
+                gravityFactor: 0.3,
+                windResistance: 0.6
+            },
+            willow: {
+                name: 'Willow',
+                branchingPattern: 'alternate',
+                phyllotaxisAngle: 137.5,
+                branchAngle: { min: 45, max: 90 },
+                branchThicknessRatio: 0.5,
+                maxDepth: 6,
+                branchingProbability: 0.9,
+                trunkColor: '#5C4033',
+                leafColor: { spring: '#ADFF2F', summer: '#9ACD32', autumn: '#F0E68C', winter: null },
+                leafShape: 'narrow',
+                height: { min: 10, max: 15 },
+                canSprout: true,
+                gravityFactor: 0.8,
+                windResistance: 0.4,
+                weeping: true
+            },
+            birch: {
+                name: 'Birch',
+                branchingPattern: 'alternate',
+                phyllotaxisAngle: 137.5,
+                branchAngle: { min: 30, max: 45 },
+                branchThicknessRatio: 0.35,
+                maxDepth: 5,
+                branchingProbability: 0.6,
+                trunkColor: '#F5F5DC',
+                barkPattern: 'birch',
+                leafColor: { spring: '#98FB98', summer: '#00FF00', autumn: '#FFD700', winter: null },
+                leafShape: 'oval',
+                height: { min: 15, max: 20 },
+                canSprout: false,
+                gravityFactor: 0.05,
+                windResistance: 0.5
+            },
+            maple: {
+                name: 'Maple',
+                branchingPattern: 'opposite',
+                branchAngle: { min: 45, max: 60 },
+                branchThicknessRatio: 0.55,
+                maxDepth: 5,
+                branchingProbability: 0.75,
+                trunkColor: '#696969',
+                leafColor: { spring: '#7CFC00', summer: '#006400', autumn: '#FF4500', winter: null },
+                leafShape: 'palmate',
+                height: { min: 12, max: 20 },
+                canSprout: false,
+                gravityFactor: 0.15,
+                windResistance: 0.7
+            },
+            palm: {
+                name: 'Palm',
+                branchingPattern: 'crown',
+                frondCount: { min: 15, max: 30 },
+                frondAngle: { min: 15, max: 45 },
+                trunkColor: '#8B7355',
+                leafColor: { spring: '#228B22', summer: '#006400', autumn: '#228B22', winter: '#228B22' },
+                leafShape: 'frond',
+                height: { min: 5, max: 30 },
+                canSprout: false,
+                gravityFactor: 0.4,
+                windResistance: 0.9,
+                trunkPattern: 'ringed'
+            },
+            cherry: {
+                name: 'Cherry',
+                branchingPattern: 'alternate',
+                phyllotaxisAngle: 137.5,
+                branchAngle: { min: 60, max: 80 },
+                branchThicknessRatio: 0.55,
+                maxDepth: 4,
+                branchingProbability: 0.8,
+                trunkColor: '#8B4513',
+                leafColor: { spring: '#FFB6C1', summer: '#228B22', autumn: '#FF6347', winter: null },
+                leafShape: 'oval',
+                height: { min: 4, max: 12 },
+                canSprout: true,
+                gravityFactor: 0.2,
+                windResistance: 0.6,
+                hasBlossoms: true
+            },
+            ginkgo: {
+                name: 'Ginkgo',
+                branchingPattern: 'alternate',
+                phyllotaxisAngle: 137.5,
+                branchAngle: { min: 45, max: 60 },
+                branchThicknessRatio: 0.5,
+                maxDepth: 4,
+                branchingProbability: 0.6,
+                trunkColor: '#A0522D',
+                leafColor: { spring: '#90EE90', summer: '#32CD32', autumn: '#FFD700', winter: null },
+                leafShape: 'fan',
+                height: { min: 20, max: 35 },
+                canSprout: false,
+                gravityFactor: 0.1,
+                windResistance: 0.8,
+                hasShortShoots: true
+            },
+            baobab: {
+                name: 'Baobab',
+                branchingPattern: 'irregular',
+                branchAngle: { min: 45, max: 90 },
+                branchThicknessRatio: 0.75,
+                maxDepth: 3,
+                branchingProbability: 0.4,
+                trunkColor: '#8B7D6B',
+                leafColor: { spring: '#9ACD32', summer: '#556B2F', autumn: '#8B7355', winter: null },
+                leafShape: 'compound',
+                height: { min: 5, max: 30 },
+                canSprout: false,
+                gravityFactor: 0.05,
+                windResistance: 0.95,
+                bottleShape: true
+            },
+            redwood: {
+                name: 'Redwood',
+                branchingPattern: 'spiral',
+                phyllotaxisAngle: 137.5,
+                branchAngle: { min: 80, max: 100 },
+                branchThicknessRatio: 0.4,
+                maxDepth: 6,
+                branchingProbability: 0.9,
+                trunkColor: '#8B2500',
+                leafColor: { spring: '#2F4F2F', summer: '#013220', autumn: '#2F4F2F', winter: '#2F4F2F' },
+                leafShape: 'needle',
+                height: { min: 60, max: 115 },
+                canSprout: true,
+                gravityFactor: 0.4,
+                windResistance: 0.9,
+                branchDroop: true
+            },
+            cypress: {
+                name: 'Cypress',
+                branchingPattern: 'spiral',
+                phyllotaxisAngle: 137.5,
+                branchAngle: { min: 10, max: 30 },
+                branchThicknessRatio: 0.4,
+                maxDepth: 5,
+                branchingProbability: 0.95,
+                trunkColor: '#8B6914',
+                leafColor: { spring: '#556B2F', summer: '#2F4F2F', autumn: '#556B2F', winter: '#556B2F' },
+                leafShape: 'scale',
+                height: { min: 15, max: 25 },
+                canSprout: false,
+                gravityFactor: 0.02,
+                windResistance: 0.7,
+                columnar: true
+            },
+            mangrove: {
+                name: 'Mangrove',
+                branchingPattern: 'irregular',
+                branchAngle: { min: 45, max: 90 },
+                branchThicknessRatio: 0.6,
+                maxDepth: 3,
+                branchingProbability: 0.5,
+                trunkColor: '#654321',
+                leafColor: { spring: '#2E8B57', summer: '#006400', autumn: '#2E8B57', winter: '#2E8B57' },
+                leafShape: 'waxy',
+                height: { min: 8, max: 15 },
+                canSprout: false,
+                gravityFactor: 0.3,
+                windResistance: 0.8,
+                propRoots: true
+            }
+        };
+        
+        // Global variables
+        let currentTree = null;
+        let animationFrame = null;
+        let windAnimation = 0;
+        let viewRotation = 0;
+        let viewZoom = 1;
+        let mouseDown = false;
+        let lastMouseX = 0;
+        
+        // Random number generator with seed
+        class Random {
+            constructor(seed) {
+                this.seed = seed;
+            }
+            
+            next() {
+                this.seed = (this.seed * 9301 + 49297) % 233280;
+                return this.seed / 233280;
+            }
+            
+            range(min, max) {
+                return min + this.next() * (max - min);
+            }
+            
+            int(min, max) {
+                return Math.floor(this.range(min, max + 1));
+            }
+        }
+        
+        // Tree generation class
+        class Tree {
+            constructor(species, age, season, seed) {
+                this.species = treeSpecies[species];
+                this.age = age / 100;
+                this.season = season;
+                this.rng = new Random(seed);
+                this.branches = [];
+                this.generateStructure();
+            }
+            
+            generateStructure() {
+                // Calculate tree height based on age
+                const { min, max } = this.species.height;
+                this.height = (min + (max - min) * this.age) * 10;
+                
+                // Generate trunk
+                this.trunk = {
+                    start: { x: 0, y: canvas.height - 100 },
+                    end: { x: 0, y: canvas.height - 100 - this.height },
+                    thickness: this.height * 0.08 * (1 + this.age * 0.5),
+                    children: []
+                };
+                
+                // Generate branches based on pattern
+                this.generateBranches(this.trunk, 0);
+            }
+            
+            generateBranches(parent, depth) {
+                if (depth >= this.species.maxDepth) return;
+                
+                const pattern = this.species.branchingPattern;
+                const branchLength = Math.abs(parent.end.y - parent.start.y);
+                
+                switch (pattern) {
+                    case 'alternate':
+                        this.generateAlternateBranches(parent, depth, branchLength);
+                        break;
+                    case 'opposite':
+                        this.generateOppositeBranches(parent, depth, branchLength);
+                        break;
+                    case 'whorled':
+                        this.generateWhorledBranches(parent, depth, branchLength);
+                        break;
+                    case 'spiral':
+                        this.generateSpiralBranches(parent, depth, branchLength);
+                        break;
+                    case 'crown':
+                        if (depth === 0) this.generatePalmCrown(parent);
+                        break;
+                    case 'irregular':
+                        this.generateIrregularBranches(parent, depth, branchLength);
+                        break;
+                }
+            }
+            
+            generateAlternateBranches(parent, depth, length) {
+                let currentAngle = 0;
+                const spacing = length / (5 - depth);
+                
+                for (let i = 0.3; i < 0.9; i += spacing / length) {
+                    if (this.rng.next() < this.species.branchingProbability * Math.pow(0.8, depth)) {
+                        const position = this.interpolatePoint(parent.start, parent.end, i);
+                        const angleVariation = this.rng.range(-10, 10);
+                        const branchAngle = this.rng.range(this.species.branchAngle.min, this.species.branchAngle.max);
+                        
+                        this.createBranch(parent, position, currentAngle + angleVariation, branchAngle, depth);
+                        currentAngle += this.species.phyllotaxisAngle;
+                    }
+                }
+            }
+            
+            generateOppositeBranches(parent, depth, length) {
+                let currentRotation = 0;
+                const spacing = length / (4 - depth);
+                
+                for (let i = 0.3; i < 0.9; i += spacing / length) {
+                    if (this.rng.next() < this.species.branchingProbability * Math.pow(0.8, depth)) {
+                        const position = this.interpolatePoint(parent.start, parent.end, i);
+                        const branchAngle = this.rng.range(this.species.branchAngle.min, this.species.branchAngle.max);
+                        
+                        // Create opposite pair
+                        this.createBranch(parent, position, currentRotation, branchAngle, depth);
+                        this.createBranch(parent, position, currentRotation + 180, branchAngle, depth);
+                        
+                        currentRotation += 90;
+                    }
+                }
+            }
+            
+            generateWhorledBranches(parent, depth, length) {
+                const whorls = Math.floor(length / (this.species.whorlSpacing * 50));
+                
+                for (let w = 0; w < whorls; w++) {
+                    const position = this.interpolatePoint(parent.start, parent.end, 0.2 + (w / whorls) * 0.7);
+                    const branchCount = this.rng.int(this.species.branchesPerWhorl.min, this.species.branchesPerWhorl.max);
+                    const angleStep = 360 / branchCount;
+                    
+                    for (let i = 0; i < branchCount; i++) {
+                        const angle = i * angleStep + this.rng.range(-5, 5);
+                        const branchAngle = this.rng.range(this.species.branchAngle.min, this.species.branchAngle.max);
+                        this.createBranch(parent, position, angle, branchAngle, depth);
+                    }
+                }
+            }
+            
+            generateSpiralBranches(parent, depth, length) {
+                this.generateAlternateBranches(parent, depth, length);
+            }
+            
+            generatePalmCrown(trunk) {
+                const frondCount = this.rng.int(this.species.frondCount.min, this.species.frondCount.max);
+                const angleStep = 360 / frondCount;
+                
+                for (let i = 0; i < frondCount; i++) {
+                    const angle = i * angleStep + this.rng.range(-10, 10);
+                    const frondAngle = this.rng.range(this.species.frondAngle.min, this.species.frondAngle.max);
+                    this.createFrond(trunk, trunk.end, angle, frondAngle);
+                }
+            }
+            
+            generateIrregularBranches(parent, depth, length) {
+                const branchCount = this.rng.int(2, 5);
+                
+                for (let i = 0; i < branchCount; i++) {
+                    const position = this.interpolatePoint(parent.start, parent.end, this.rng.range(0.5, 0.9));
+                    const angle = this.rng.range(0, 360);
+                    const branchAngle = this.rng.range(this.species.branchAngle.min, this.species.branchAngle.max);
+                    
+                    if (this.rng.next() < this.species.branchingProbability) {
+                        this.createBranch(parent, position, angle, branchAngle, depth);
+                    }
+                }
+            }
+            
+            createBranch(parent, position, rotation, angle, depth) {
+                const length = parent.thickness * this.rng.range(2, 4) * Math.pow(0.8, depth);
+                const thickness = parent.thickness * this.species.branchThicknessRatio;
+                
+                // Apply age modifications
+                const ageModifiedAngle = angle + (this.age - 0.5) * 20;
+                
+                // Calculate branch end position
+                const radAngle = (ageModifiedAngle - 90) * Math.PI / 180;
+                const radRotation = rotation * Math.PI / 180;
+                
+                let endX = position.x + Math.cos(radAngle) * Math.cos(radRotation) * length;
+                let endY = position.y + Math.sin(radAngle) * length;
+                
+                // Apply gravity for weeping trees
+                if (this.species.weeping) {
+                    endY += length * 0.5 * depth;
+                }
+                
+                const branch = {
+                    start: position,
+                    end: { x: endX, y: endY },
+                    thickness: thickness,
+                    depth: depth,
+                    angle: rotation,
+                    children: []
+                };
+                
+                parent.children.push(branch);
+                this.branches.push(branch);
+                
+                // Recursive branching
+                this.generateBranches(branch, depth + 1);
+            }
+            
+            createFrond(parent, position, rotation, angle) {
+                const length = this.rng.range(80, 120);
+                const radAngle = (angle - 90) * Math.PI / 180;
+                const radRotation = rotation * Math.PI / 180;
+                
+                const endX = position.x + Math.cos(radAngle) * Math.cos(radRotation) * length;
+                const endY = position.y + Math.sin(radAngle) * length;
+                
+                const frond = {
+                    start: position,
+                    end: { x: endX, y: endY },
+                    thickness: 3,
+                    isFrond: true,
+                    children: []
+                };
+                
+                parent.children.push(frond);
+                this.branches.push(frond);
+            }
+            
+            interpolatePoint(start, end, t) {
+                return {
+                    x: start.x + (end.x - start.x) * t,
+                    y: start.y + (end.y - start.y) * t
+                };
+            }
+        }
+        
+        // Drawing functions
+        function drawTree(tree, windStrength = 0, windDirection = 0) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw sky gradient
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, '#87CEEB');
+            gradient.addColorStop(0.6, '#98D8E8');
+            gradient.addColorStop(1, '#E0F6FF');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw ground
+            ctx.fillStyle = '#8B7355';
+            ctx.fillRect(0, canvas.height - 100, canvas.width, 100);
+            
+            // Apply view transformations
+            ctx.save();
+            ctx.translate(canvas.width / 2, 0);
+            ctx.scale(viewZoom, viewZoom);
+            
+            // Draw shadow
+            drawShadow(tree);
+            
+            // Draw tree structure
+            drawBranch(tree.trunk, tree, windStrength, windDirection);
+            
+            // Draw foliage
+            if (tree.season !== 'winter' || tree.species.leafColor.winter) {
+                drawFoliage(tree, windStrength, windDirection);
+            }
+            
+            ctx.restore();
+        }
+        
+        function drawBranch(branch, tree, windStrength, windDirection) {
+            const windRad = windDirection * Math.PI / 180;
+            const sway = Math.sin(windAnimation) * windStrength * 0.5;
+            
+            ctx.save();
+            
+            // Apply wind effect
+            const windEffect = sway * (1 - branch.thickness / tree.trunk.thickness);
+            ctx.translate(windEffect * Math.cos(windRad), 0);
+            
+            // Draw branch
+            ctx.beginPath();
+            ctx.moveTo(branch.start.x, branch.start.y);
+            
+            // Add slight curve for organic look
+            const midX = (branch.start.x + branch.end.x) / 2 + windEffect * 2;
+            const midY = (branch.start.y + branch.end.y) / 2;
+            
+            ctx.quadraticCurveTo(midX, midY, branch.end.x, branch.end.y);
+            
+            ctx.lineWidth = branch.thickness;
+            ctx.strokeStyle = tree.species.trunkColor;
+            ctx.lineCap = 'round';
+            ctx.stroke();
+            
+            // Draw bark texture for trunk
+            if (branch === tree.trunk && tree.species.barkPattern === 'birch') {
+                drawBirchBark(branch);
+            }
+            
+            // Draw children
+            for (const child of branch.children) {
+                drawBranch(child, tree, windStrength, windDirection);
+            }
+            
+            ctx.restore();
+        }
+        
+        function drawBirchBark(trunk) {
+            ctx.save();
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 2;
+            
+            const segments = 20;
+            for (let i = 0; i < segments; i++) {
+                const y = trunk.start.y - (trunk.start.y - trunk.end.y) * (i / segments);
+                const x = trunk.start.x + (trunk.end.x - trunk.start.x) * (i / segments);
+                
+                if (Math.random() < 0.3) {
+                    ctx.beginPath();
+                    ctx.moveTo(x - trunk.thickness / 2, y);
+                    ctx.lineTo(x + trunk.thickness / 2, y);
+                    ctx.stroke();
+                }
+            }
+            ctx.restore();
+        }
+        
+        function drawFoliage(tree, windStrength, windDirection) {
+            const leafColor = tree.species.leafColor[tree.season];
+            if (!leafColor) return;
+            
+            const windRad = windDirection * Math.PI / 180;
+            
+            // Draw leaves on terminal branches
+            for (const branch of tree.branches) {
+                if (branch.children.length === 0 || branch.isFrond) {
+                    drawLeavesOnBranch(branch, leafColor, tree.species.leafShape, windStrength, windRad);
+                }
+            }
+        }
+        
+        function drawLeavesOnBranch(branch, color, shape, windStrength, windRad) {
+            const leafClusters = branch.isFrond ? 30 : 8;
+            const sway = Math.sin(windAnimation * 2) * windStrength * 0.3;
+            
+            for (let i = 0; i < leafClusters; i++) {
+                const t = i / leafClusters;
+                const pos = {
+                    x: branch.start.x + (branch.end.x - branch.start.x) * t,
+                    y: branch.start.y + (branch.end.y - branch.start.y) * t
+                };
+                
+                // Add wind offset
+                pos.x += sway * Math.cos(windRad) * (1 + t);
+                
+                drawLeaf(pos, color, shape, branch.isFrond);
+            }
+        }
+        
+        function drawLeaf(pos, color, shape, isFrond = false) {
+            ctx.save();
+            ctx.translate(pos.x, pos.y);
+            
+            // Add slight rotation for natural look
+            ctx.rotate(Math.random() * Math.PI / 4);
+            
+            ctx.fillStyle = color;
+            ctx.globalAlpha = 0.9;
+            
+            switch (shape) {
+                case 'lobed':
+                    drawLobedLeaf();
+                    break;
+                case 'needle':
+                    drawNeedle();
+                    break;
+                case 'narrow':
+                    drawNarrowLeaf();
+                    break;
+                case 'oval':
+                    drawOvalLeaf();
+                    break;
+                case 'palmate':
+                    drawPalmateLeaf();
+                    break;
+                case 'frond':
+                    drawFrondSegment();
+                    break;
+                case 'fan':
+                    drawFanLeaf();
+                    break;
+                case 'compound':
+                    drawCompoundLeaf();
+                    break;
+                case 'scale':
+                    drawScaleLeaf();
+                    break;
+                case 'waxy':
+                    drawWaxyLeaf();
+                    break;
+                default:
+                    drawOvalLeaf();
+            }
+            
+            ctx.restore();
+        }
+        
+        function drawLobedLeaf() {
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.bezierCurveTo(-8, -5, -8, -15, 0, -20);
+            ctx.bezierCurveTo(8, -15, 8, -5, 0, 0);
+            ctx.fill();
+        }
+        
+        function drawNeedle() {
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(0, -15);
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = ctx.fillStyle;
+            ctx.stroke();
+        }
+        
+        function drawNarrowLeaf() {
+            ctx.beginPath();
+            ctx.ellipse(0, -10, 3, 15, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        function drawOvalLeaf() {
+            ctx.beginPath();
+            ctx.ellipse(0, -8, 6, 10, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        function drawPalmateLeaf() {
+            // Maple-like leaf with multiple lobes
+            for (let i = 0; i < 5; i++) {
+                ctx.save();
+                ctx.rotate(i * Math.PI / 2.5 - Math.PI / 2);
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.quadraticCurveTo(0, -10, 3, -15);
+                ctx.quadraticCurveTo(0, -10, -3, -15);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+        
+        function drawFrondSegment() {
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.quadraticCurveTo(5, -5, 10, -8);
+            ctx.quadraticCurveTo(5, -5, 0, 0);
+            ctx.fill();
+        }
+        
+        function drawFanLeaf() {
+            ctx.beginPath();
+            ctx.arc(0, 0, 12, Math.PI, 0, false);
+            ctx.closePath();
+            ctx.fill();
+        }
+        
+        function drawCompoundLeaf() {
+            for (let i = -2; i <= 2; i++) {
+                ctx.save();
+                ctx.translate(i * 5, Math.abs(i) * 2);
+                drawOvalLeaf();
+                ctx.restore();
+            }
+        }
+        
+        function drawScaleLeaf() {
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(3, -3);
+            ctx.lineTo(0, -6);
+            ctx.lineTo(-3, -3);
+            ctx.closePath();
+            ctx.fill();
+        }
+        
+        function drawWaxyLeaf() {
+            ctx.beginPath();
+            ctx.ellipse(0, -8, 8, 12, 0, 0, Math.PI * 2);
+            ctx.fill();
+            // Add shine effect
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.beginPath();
+            ctx.ellipse(-2, -10, 3, 4, -Math.PI / 4, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        function drawShadow(tree) {
+            ctx.save();
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+            ctx.scale(1, 0.3);
+            ctx.translate(50, canvas.height * 2.8);
+            
+            // Simple tree shadow
+            ctx.beginPath();
+            ctx.ellipse(0, 0, tree.height * 0.3, tree.height * 0.2, 0, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.restore();
+        }
+        
+        // Animation loop
+        function animate() {
+            if (!currentTree) return;
+            
+            windAnimation += 0.05;
+            
+            const windStrength = parseFloat(document.getElementById('windStrength').value);
+            const windDirection = parseFloat(document.getElementById('windDirection').value);
+            
+            drawTree(currentTree, windStrength, windDirection);
+            
+            animationFrame = requestAnimationFrame(animate);
+        }
+        
+        // Tree generation function
+        function generateTree() {
+            const species = document.getElementById('species').value;
+            const age = parseFloat(document.getElementById('age').value);
+            const season = document.getElementById('season').value;
+            const seed = parseInt(document.getElementById('seed').value);
+            
+            currentTree = new Tree(species, age, season, seed);
+            
+            if (!animationFrame) {
+                animate();
+            }
+        }
+        
+        // Growth animation
+        function animateGrowth() {
+            if (!currentTree) {
+                generateTree();
+                return;
+            }
+            
+            const targetAge = parseFloat(document.getElementById('age').value);
+            let currentAge = 10;
+            
+            const growthInterval = setInterval(() => {
+                currentAge += 2;
+                if (currentAge >= targetAge) {
+                    currentAge = targetAge;
+                    clearInterval(growthInterval);
+                }
+                
+                document.getElementById('age').value = currentAge;
+                document.getElementById('ageValue').textContent = currentAge;
+                
+                const species = document.getElementById('species').value;
+                const season = document.getElementById('season').value;
+                const seed = parseInt(document.getElementById('seed').value);
+                
+                currentTree = new Tree(species, currentAge, season, seed);
+            }, 50);
+        }
+        
+        // Utility functions
+        function randomizeSeed() {
+            const newSeed = Math.floor(Math.random() * 100000);
+            document.getElementById('seed').value = newSeed;
+            generateTree();
+        }
+        
+        function exportTree() {
+            const link = document.createElement('a');
+            link.download = `${currentTree.species.name}_tree_${Date.now()}.png`;
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+        
+        // Event listeners
+        document.getElementById('age').addEventListener('input', (e) => {
+            document.getElementById('ageValue').textContent = e.target.value;
+        });
+        
+        document.getElementById('windStrength').addEventListener('input', (e) => {
+            document.getElementById('windValue').textContent = e.target.value;
+        });
+        
+        document.getElementById('windDirection').addEventListener('input', (e) => {
+            document.getElementById('windDirValue').textContent = e.target.value;
+            document.getElementById('windArrow').style.transform = `rotate(${e.target.value}deg)`;
+        });
+        
+        document.getElementById('damage').addEventListener('input', (e) => {
+            document.getElementById('damageValue').textContent = e.target.value;
+        });
+        
+        // Mouse controls for rotation
+        canvas.addEventListener('mousedown', (e) => {
+            mouseDown = true;
+            lastMouseX = e.clientX;
+            canvas.style.cursor = 'grabbing';
+        });
+        
+        canvas.addEventListener('mousemove', (e) => {
+            if (!mouseDown) return;
+            
+            const deltaX = e.clientX - lastMouseX;
+            viewRotation += deltaX * 0.5;
+            lastMouseX = e.clientX;
+        });
+        
+        canvas.addEventListener('mouseup', () => {
+            mouseDown = false;
+            canvas.style.cursor = 'grab';
+        });
+        
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const delta = e.deltaY > 0 ? 0.9 : 1.1;
+            viewZoom = Math.max(0.5, Math.min(3, viewZoom * delta));
+        });
+        
+        // Initialize
+        generateTree();
+    </script>
+</body>
+</html>

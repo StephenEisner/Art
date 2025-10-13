@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ambient Weather Landscape</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #000;
+        }
+        #controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+        }
+        #controls h3 {
+            margin-top: 0;
+        }
+        #controls label {
+            display: block;
+            margin: 5px 0;
+        }
+        #controls input[type="range"] {
+            width: 150px;
+        }
+        #controls select {
+            width: 150px;
+        }
+    </style>
+</head>
+<body>
+    <div id="controls">
+        <h3>Weather Controls</h3>
+        <label>
+            Time of Day: <span id="timeValue">12:00</span>
+            <input type="range" id="timeOfDay" min="0" max="24" step="0.1" value="12">
+        </label>
+        <label>
+            Temperature: <span id="tempValue">20°C</span>
+            <input type="range" id="temperature" min="-20" max="40" step="1" value="20">
+        </label>
+        <label>
+            Wind Speed: <span id="windValue">5 m/s</span>
+            <input type="range" id="windSpeed" min="0" max="30" step="1" value="5">
+        </label>
+        <label>
+            Cloud Coverage: <span id="cloudValue">30%</span>
+            <input type="range" id="cloudCoverage" min="0" max="100" step="5" value="30">
+        </label>
+        <label>
+            Weather:
+            <select id="weatherType">
+                <option value="clear">Clear</option>
+                <option value="rain">Rain</option>
+                <option value="snow">Snow</option>
+                <option value="storm">Storm</option>
+                <option value="fog">Fog</option>
+            </select>
+        </label>
+        <label>
+            Pressure: <span id="pressureValue">1013 hPa</span>
+            <input type="range" id="pressure" min="980" max="1040" step="1" value="1013">
+        </label>
+    </div>
+
+    <script>
+        let particles = [];
+        let rainDrops = [];
+        let snowFlakes = [];
+        let windParticles = [];
+        let stars = [];
+        let lightning = null;
+        let terrainPoints = [];
+        let grassBlades = [];
+        
+        // Weather parameters
+        let timeOfDay = 12;
+        let temperature = 20;
+        let windSpeed = 5;
+        let windDirection = 0;
+        let cloudCoverage = 0.3;
+        let weatherType = 'clear';
+        let pressure = 1013;
+        
+        // Visual parameters
+        let sunX, sunY, moonX, moonY;
+        let skyGradient;
+        let horizonY;
+        
+        function setup() {
+            createCanvas(windowWidth, windowHeight);
+            horizonY = height * 0.6;
+            
+            // Initialize terrain
+            for (let x = 0; x <= width + 100; x += 5) {
+                terrainPoints.push({
+                    x: x,
+                    baseY: horizonY + noise(x * 0.005) * 100,
+                    offset: 0
+                });
+            }
+            
+            // Initialize grass
+            for (let x = 0; x < width; x += 8) {
+                for (let i = 0; i < 3; i++) {
+                    grassBlades.push({
+                        x: x + random(-10, 10),
+                        y: horizonY + random(-20, 50),
+                        height: random(20, 40),
+                        phase: random(TWO_PI),
+                        flexibility: random(0.02, 0.05)
+                    });
+                }
+            }
+            
+            // Initialize stars
+            for (let i = 0; i < 200; i++) {
+                stars.push({
+                    x: random(width),
+                    y: random(horizonY),
+                    size: random(1, 3),
+                    brightness: random(100, 255)
+                });
+            }
+            
+            // Initialize wind particles
+            for (let i = 0; i < 50; i++) {
+                windParticles.push(createWindParticle());
+            }
+            
+            // Setup controls
+            setupControls();
+        }
+        
+        function draw() {
+            // Update visual parameters based on controls
+            updateWeatherParams();
+            
+            // Draw sky
+            drawSky();
+            
+            // Draw celestial bodies
+            drawSunMoon();
+            
+            // Draw stars (night only)
+            if (timeOfDay < 6 || timeOfDay > 20) {
+                drawStars();
+            }
+            
+            // Draw clouds
+            drawClouds();
+            
+            // Draw terrain
+            drawTerrain();
+            
+            // Draw grass
+            drawGrass();
+            
+            // Draw weather effects
+            if (weatherType === 'rain') {
+                drawRain();
+            } else if (weatherType === 'snow') {
+                drawSnow();
+            } else if (weatherType === 'fog') {
+                drawFog();
+            }
+            
+            // Draw wind
+            drawWind();
+            
+            // Draw lightning
+            if (weatherType === 'storm' && random() < 0.01) {
+                triggerLightning();
+            }
+            if (lightning) {
+                drawLightning();
+            }
+        }
+        
+        function drawSky() {
+            // Create gradient based on time of day
+            let c1, c2;
+            
+            if (timeOfDay < 6) { // Night
+                c1 = color(10, 10, 30);
+                c2 = color(30, 30, 60);
+            } else if (timeOfDay < 8) { // Dawn
+                let t = map(timeOfDay, 6, 8, 0, 1);
+                c1 = lerpColor(color(10, 10, 30), color(255, 100, 50), t);
+                c2 = lerpColor(color(30, 30, 60), color(255, 180, 100), t);
+            } else if (timeOfDay < 10) { // Morning
+                let t = map(timeOfDay, 8, 10, 0, 1);
+                c1 = lerpColor(color(255, 100, 50), color(135, 206, 235), t);
+                c2 = lerpColor(color(255, 180, 100), color(255, 255, 200), t);
+            } else if (timeOfDay < 17) { // Day
+                c1 = color(135, 206, 235);
+                c2 = color(255, 255, 200);
+            } else if (timeOfDay < 19) { // Sunset
+                let t = map(timeOfDay, 17, 19, 0, 1);
+                c1 = lerpColor(color(135, 206, 235), color(255, 94, 77), t);
+                c2 = lerpColor(color(255, 255, 200), color(255, 154, 0), t);
+            } else if (timeOfDay < 21) { // Dusk
+                let t = map(timeOfDay, 19, 21, 0, 1);
+                c1 = lerpColor(color(255, 94, 77), color(70, 30, 80), t);
+                c2 = lerpColor(color(255, 154, 0), color(30, 30, 60), t);
+            } else { // Night
+                c1 = color(10, 10, 30);
+                c2 = color(30, 30, 60);
+            }
+            
+            // Apply weather effects to colors
+            if (weatherType === 'storm' || weatherType === 'rain') {
+                c1 = lerpColor(c1, color(50, 50, 70), 0.5);
+                c2 = lerpColor(c2, color(80, 80, 100), 0.5);
+            }
+            
+            // Draw gradient
+            for (let y = 0; y <= height; y++) {
+                let inter = map(y, 0, height, 0, 1);
+                let c = lerpColor(c1, c2, inter);
+                stroke(c);
+                line(0, y, width, y);
+            }
+        }
+        
+        function drawSunMoon() {
+            push();
+            
+            // Calculate sun position
+            let sunAngle = map(timeOfDay, 6, 18, PI, 0);
+            sunX = width/2 + cos(sunAngle) * width * 0.4;
+            sunY = horizonY + sin(sunAngle) * height * 0.4;
+            
+            // Calculate moon position
+            let moonAngle = map(timeOfDay, 18, 30, PI, 0);
+            if (timeOfDay < 6) moonAngle = map(timeOfDay, 0, 6, 0, TWO_PI);
+            moonX = width/2 + cos(moonAngle) * width * 0.4;
+            moonY = horizonY + sin(moonAngle) * height * 0.4;
+            
+            // Draw sun
+            if (timeOfDay > 6 && timeOfDay < 18) {
+                noStroke();
+                fill(255, 200, 50, 200);
+                circle(sunX, sunY, 60);
+                fill(255, 220, 100, 100);
+                circle(sunX, sunY, 80);
+            }
+            
+            // Draw moon
+            if (timeOfDay < 6 || timeOfDay > 18) {
+                noStroke();
+                fill(230, 230, 250, 200);
+                circle(moonX, moonY, 50);
+                fill(200, 200, 220, 100);
+                circle(moonX, moonY, 70);
+            }
+            
+            pop();
+        }
+        
+        function drawStars() {
+            push();
+            let starVisibility = 1;
+            if (timeOfDay > 4 && timeOfDay < 6) {
+                starVisibility = map(timeOfDay, 4, 6, 1, 0);
+            } else if (timeOfDay > 20 && timeOfDay < 22) {
+                starVisibility = map(timeOfDay, 20, 22, 0, 1);
+            }
+            
+            stars.forEach(star => {
+                let twinkle = sin(frameCount * 0.05 + star.phase) * 0.5 + 0.5;
+                fill(255, 255, 255, star.brightness * starVisibility * twinkle);
+                noStroke();
+                circle(star.x, star.y, star.size);
+            });
+            pop();
+        }
+        
+        function drawClouds() {
+            push();
+            noStroke();
+            
+            let cloudAlpha = map(cloudCoverage, 0, 1, 0, 150);
+            fill(255, 255, 255, cloudAlpha);
+            
+            // Draw cloud layers
+            for (let layer = 0; layer < 3; layer++) {
+                for (let x = -200; x < width + 200; x += 50) {
+                    let y = 100 + layer * 50;
+                    let size = noise(x * 0.01 + frameCount * 0.001, layer) * 100 + 50;
+                    let offsetX = sin(frameCount * 0.001 + layer) * 20;
+                    
+                    if (noise(x * 0.01, layer) < cloudCoverage) {
+                        ellipse(x + offsetX, y, size * 2, size);
+                    }
+                }
+            }
+            pop();
+        }
+        
+        function drawTerrain() {
+            push();
+            
+            // Update terrain based on pressure
+            terrainPoints.forEach((point, i) => {
+                point.offset = sin(frameCount * 0.01 + i * 0.1) * map(pressure, 980, 1040, 20, 5);
+            });
+            
+            // Draw multiple terrain layers
+            for (let layer = 0; layer < 3; layer++) {
+                let layerAlpha = map(layer, 0, 2, 255, 100);
+                let tempColor = lerpColor(
+                    color(100, 150, 100), 
+                    color(150, 100, 50), 
+                    map(temperature, -20, 40, 0, 1)
+                );
+                
+                fill(red(tempColor) * (1 - layer * 0.2), 
+                     green(tempColor) * (1 - layer * 0.2), 
+                     blue(tempColor) * (1 - layer * 0.2), 
+                     layerAlpha);
+                noStroke();
+                
+                beginShape();
+                vertex(0, height);
+                terrainPoints.forEach((point, i) => {
+                    let y = point.baseY + point.offset + layer * 30;
+                    vertex(point.x, y);
+                });
+                vertex(width, height);
+                endShape(CLOSE);
+            }
+            pop();
+        }
+        
+        function drawGrass() {
+            push();
+            strokeWeight(2);
+            
+            grassBlades.forEach(blade => {
+                let windEffect = sin(frameCount * blade.flexibility + blade.phase) * windSpeed * 0.5;
+                let grassColor = lerpColor(
+                    color(50, 150, 50),
+                    color(150, 120, 50),
+                    map(temperature, -20, 40, 0, 1)
+                );
+                
+                stroke(grassColor);
+                let tipX = blade.x + windEffect;
+                let tipY = blade.y - blade.height;
+                
+                noFill();
+                beginShape();
+                vertex(blade.x, blade.y);
+                bezierVertex(
+                    blade.x, blade.y - blade.height * 0.3,
+                    tipX - windEffect * 0.5, tipY + blade.height * 0.3,
+                    tipX, tipY
+                );
+                endShape();
+            });
+            pop();
+        }
+        
+        function drawRain() {
+            // Add new raindrops
+            for (let i = 0; i < 5; i++) {
+                rainDrops.push({
+                    x: random(width),
+                    y: random(-100, 0),
+                    speed: random(10, 20),
+                    length: random(10, 30),
+                    alpha: random(100, 200)
+                });
+            }
+            
+            // Update and draw raindrops
+            push();
+            strokeWeight(2);
+            rainDrops = rainDrops.filter(drop => {
+                drop.y += drop.speed;
+                drop.x += windSpeed * 0.2;
+                
+                stroke(150, 150, 255, drop.alpha);
+                line(drop.x, drop.y, drop.x + windSpeed * 0.1, drop.y + drop.length);
+                
+                return drop.y < height;
+            });
+            pop();
+        }
+        
+        function drawSnow() {
+            // Add new snowflakes
+            for (let i = 0; i < 3; i++) {
+                snowFlakes.push({
+                    x: random(width),
+                    y: random(-100, 0),
+                    speed: random(1, 3),
+                    size: random(3, 8),
+                    wobble: random(0.02, 0.05),
+                    phase: random(TWO_PI)
+                });
+            }
+            
+            // Update and draw snowflakes
+            push();
+            fill(255, 255, 255, 200);
+            noStroke();
+            snowFlakes = snowFlakes.filter(flake => {
+                flake.y += flake.speed;
+                flake.x += sin(frameCount * flake.wobble + flake.phase) * 2 + windSpeed * 0.1;
+                
+                circle(flake.x, flake.y, flake.size);
+                
+                return flake.y < height;
+            });
+            pop();
+        }
+        
+        function drawFog() {
+            push();
+            noStroke();
+            
+            for (let i = 0; i < 5; i++) {
+                let fogY = horizonY - 100 + i * 40;
+                let fogAlpha = map(i, 0, 5, 80, 20);
+                fill(200, 200, 220, fogAlpha);
+                
+                beginShape();
+                for (let x = 0; x <= width; x += 20) {
+                    let y = fogY + noise(x * 0.01 + frameCount * 0.001, i) * 50;
+                    vertex(x, y);
+                }
+                vertex(width, height);
+                vertex(0, height);
+                endShape(CLOSE);
+            }
+            pop();
+        }
+        
+        function drawWind() {
+            push();
+            strokeWeight(1);
+            
+            windParticles.forEach(particle => {
+                particle.x += windSpeed * 0.5;
+                particle.y += sin(particle.phase + frameCount * 0.02) * 0.5;
+                particle.phase += 0.1;
+                
+                let alpha = map(particle.lifespan, 0, 100, 0, 100);
+                stroke(255, 255, 255, alpha);
+                
+                let prevX = particle.x;
+                let prevY = particle.y;
+                for (let i = 0; i < 5; i++) {
+                    let nextX = prevX - i * windSpeed * 0.2;
+                    let nextY = prevY + sin(particle.phase - i * 0.2) * 2;
+                    line(prevX, prevY, nextX, nextY);
+                    prevX = nextX;
+                    prevY = nextY;
+                }
+                
+                particle.lifespan--;
+                
+                if (particle.x > width || particle.lifespan <= 0) {
+                    particle.x = random(-100, 0);
+                    particle.y = random(height);
+                    particle.lifespan = 100;
+                }
+            });
+            pop();
+        }
+        
+        function triggerLightning() {
+            lightning = {
+                x: random(width),
+                y: 0,
+                branches: [],
+                lifespan: 10
+            };
+            
+            // Create main bolt
+            let currentX = lightning.x;
+            let currentY = lightning.y;
+            while (currentY < horizonY) {
+                let nextX = currentX + random(-30, 30);
+                let nextY = currentY + random(20, 50);
+                lightning.branches.push({x1: currentX, y1: currentY, x2: nextX, y2: nextY});
+                currentX = nextX;
+                currentY = nextY;
+            }
+        }
+        
+        function drawLightning() {
+            if (!lightning) return;
+            
+            push();
+            strokeWeight(3);
+            stroke(255, 255, 255, lightning.lifespan * 25);
+            
+            lightning.branches.forEach(branch => {
+                line(branch.x1, branch.y1, branch.x2, branch.y2);
+            });
+            
+            // Flash effect
+            fill(255, 255, 255, lightning.lifespan * 5);
+            rect(0, 0, width, height);
+            
+            lightning.lifespan--;
+            if (lightning.lifespan <= 0) {
+                lightning = null;
+            }
+            pop();
+        }
+        
+        function createWindParticle() {
+            return {
+                x: random(-100, width),
+                y: random(height),
+                phase: random(TWO_PI),
+                lifespan: 100
+            };
+        }
+        
+        function updateWeatherParams() {
+            timeOfDay = parseFloat(document.getElementById('timeOfDay').value);
+            temperature = parseFloat(document.getElementById('temperature').value);
+            windSpeed = parseFloat(document.getElementById('windSpeed').value);
+            cloudCoverage = parseFloat(document.getElementById('cloudCoverage').value) / 100;
+            weatherType = document.getElementById('weatherType').value;
+            pressure = parseFloat(document.getElementById('pressure').value);
+            
+            windDirection = sin(frameCount * 0.01) * PI/4;
+        }
+        
+        function setupControls() {
+            document.getElementById('timeOfDay').addEventListener('input', (e) => {
+                document.getElementById('timeValue').textContent = 
+                    Math.floor(e.target.value) + ':' + 
+                    Math.floor((e.target.value % 1) * 60).toString().padStart(2, '0');
+            });
+            
+            document.getElementById('temperature').addEventListener('input', (e) => {
+                document.getElementById('tempValue').textContent = e.target.value + '°C';
+            });
+            
+            document.getElementById('windSpeed').addEventListener('input', (e) => {
+                document.getElementById('windValue').textContent = e.target.value + ' m/s';
+            });
+            
+            document.getElementById('cloudCoverage').addEventListener('input', (e) => {
+                document.getElementById('cloudValue').textContent = e.target.value + '%';
+            });
+            
+            document.getElementById('pressure').addEventListener('input', (e) => {
+                document.getElementById('pressureValue').textContent = e.target.value + ' hPa';
+            });
+        }
+        
+        function windowResized() {
+            resizeCanvas(windowWidth, windowHeight);
+            horizonY = height * 0.6;
+        }
+    </script>
+</body>
+</html>

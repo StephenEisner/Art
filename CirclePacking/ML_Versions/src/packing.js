@@ -110,7 +110,7 @@ const Packing = {
       canvasContext = null,
       useSpatialHash = true,
       enableSmartEarlyExit = true,
-      smartExitCheckInterval = 100,
+      smartExitCheckInterval = 1000,
       smartExitMinPlacementRate = 0.01,
       enableCollisionCaching = true,
       onProgress
